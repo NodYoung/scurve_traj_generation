@@ -2,13 +2,13 @@
 """
 this file contains main low level planning function "traj_segment_planning" to to calculate the values of t_jrk, t_acc, t_vel for each phase of the segment
 """
-import rospy
+import logging
 import math
-import cubic_eq_roots as rt
+from . import cubic_eq_roots as rt
 
 
 def calculate_min_pos_reached_acc_to_reach_max_vel(v, vm, am, jm):
-    '''
+    '''假设v以jm到达vmax, 计算运动的最小距离min_pos和到达的加速度reached_acc
     This function calculates the following variables to reach the absolute Maximum Velocity "vm"  starting with initial_velocity "v":
     1. the minimum position required to reach the maximum absolute velocity "vm"
     2. the acceleration "acc" that has been reached to reach the maximum absolute velocity starting with "v"
@@ -16,7 +16,7 @@ def calculate_min_pos_reached_acc_to_reach_max_vel(v, vm, am, jm):
     p0=0.0
     a0=0.0
     v0=v
-    ar = math.sqrt( jm*(vm-v0) )
+    ar = math.sqrt( jm*(vm-v0) )  # 这里加速度曲线[/\], 即先从0走到ar,再回到0. 速度的变化量为vm-v0. 对应公式ar*ar=2*jmax*(vm-v0)*0.5
     t= ar/jm
     ta=0.0
     tv=0.0
@@ -69,7 +69,7 @@ def calculate_reached_acc_in_case_no_const_acc_phase(Dp, v, vm, am ,jm):
  
 
 def calculate_min_pos_const_acc_time_to_reach_max_acc_and_max_vel(v, vm, am, jm):
-    '''
+    ''' 假设最大加速度am可以达到, 且vm可以达到, 计算需要运行的最短距离和对应的匀加速度段时间. 
     This function calculates the following variables to reach the absolute Maximum Velocity "vm"  
     starting with initial_velocity "v" considering that the absolute maximum acceleration "am" will be reached:
        1. the minimum position required to reach the maximum absolute velocity "vm"
@@ -79,8 +79,8 @@ def calculate_min_pos_const_acc_time_to_reach_max_acc_and_max_vel(v, vm, am, jm)
     a0=0.0
     v0=v
     t = am/jm
-    tv= 0.0
-    ta= ( vm-v0-(am**2/jm) )/am
+    tv= 0.0 # 没有恒定速度段
+    ta= ( vm-v0-(am**2/jm) )/am # 恒定加速度段时间
 
     a1 =  jm*t +  a0;
     a2 =          a1;
@@ -116,7 +116,7 @@ def calculate_min_pos_to_reach_max_acc(v, vm, am, jm):
     a0=0.0
     v0=v
     t = am/jm
-    tv= 0.0
+    tv= 0.0 # 匀速度段和匀加速度段都为0
     ta= 0.0 
     
     a1 =  jm*t +  a0;
@@ -223,8 +223,8 @@ def equal_vel_case_planning (pos_diff, v, abs_max_vel, abs_max_acc, abs_max_jrk)
     min_pos_to_max_vel, reached_acc_to_max_vel = calculate_min_pos_reached_acc_to_reach_max_vel(v, abs_max_vel, abs_max_acc, abs_max_jrk)
     # check if reached_acc_to_max_vel < abs_max_acc: 
     #if yes: then no const_acc phase, check if a const_vel phase is required or not (to satisfy pos_diff) 
-    if(reached_acc_to_max_vel<= abs_max_acc):
-        rospy.logdebug("case a: maxAcc won't be reached !  /\\/ ")
+    if(reached_acc_to_max_vel<= abs_max_acc): # 由于速度的约束，不能达到最大加速度(也不可能有匀加速段)
+        logging.info("case a: maxAcc won't be reached !  /\\/ ")
         reached_vel = abs_max_vel
         reached_acc = reached_acc_to_max_vel      
         t_max_jrk = reached_acc_to_max_vel/abs_max_jrk
@@ -232,16 +232,16 @@ def equal_vel_case_planning (pos_diff, v, abs_max_vel, abs_max_acc, abs_max_jrk)
         t_max_vel = 0.0
         
         if(pos_diff > min_pos_to_max_vel):
-            rospy.logdebug("\n >>> case a1: require const_vel_phase=zero_acc_phase [ /\-----\/ ]" )
+            logging.info(" >>> case a1: require const_vel_phase=zero_acc_phase [ /\-----\/ ]" )
             t_max_vel= (pos_diff - min_pos_to_max_vel )/ abs_max_vel
         else:
-            rospy.logdebug("\n >>> case a2: calculate Acc corresponds to pos_diff [ /\\/ ]")
+            logging.info(" >>> case a2: calculate Acc corresponds to pos_diff [ /\\/ ]")
             acc = calculate_reached_acc_in_case_no_const_acc_phase(pos_diff, v, abs_max_vel, abs_max_acc, abs_max_jrk)
             t_max_jrk = acc/abs_max_jrk
                 
     #if  no: check if a const_acc phase is required or not (to satisfy pos_diff) 
-    elif(reached_acc_to_max_vel > abs_max_acc):
-        rospy.logdebug("case b: maxAcc will be reached !  /'''\\.../")
+    elif(reached_acc_to_max_vel > abs_max_acc): # 可能达到最大加速度
+        logging.info("case b: maxAcc will be reached !  /'''\\.../")
         min_pos_to_max_vel, t_max_acc = calculate_min_pos_const_acc_time_to_reach_max_acc_and_max_vel(v, abs_max_vel, abs_max_acc, abs_max_jrk)
         reached_vel = abs_max_vel
         reached_acc = abs_max_acc    
@@ -249,17 +249,17 @@ def equal_vel_case_planning (pos_diff, v, abs_max_vel, abs_max_acc, abs_max_jrk)
         t_max_vel = 0.0
         
         if(pos_diff >= min_pos_to_max_vel):
-            rospy.logdebug("\n >>> case b1: require const_vel_phase=zero_acc_phase [ /```\------\.../ ]" )
+            logging.info("\n >>> case b1: require const_vel_phase=zero_acc_phase [ /```\------\.../ ]" )
             t_max_vel= (pos_diff - min_pos_to_max_vel )/ abs_max_vel
-        else:
+        else: # 由于距离的约束，不能达到vm
             min_pos_to_max_acc = calculate_min_pos_to_reach_max_acc(v, abs_max_vel, abs_max_acc, abs_max_jrk)
-            rospy.logdebug("case b2: min_pos_to_max_acc= {}, Dp= {} ".format(min_pos_to_max_acc, pos_diff) )
+            logging.info(f'case b2: min_pos_to_max_acc= {min_pos_to_max_acc}, pos_diff= {pos_diff}')
             if(pos_diff >= min_pos_to_max_acc):
-                rospy.logdebug( "\n >>> case b2a: calculate acc_time-reached_vel corresponds to pos_diff [ /````\\..../ ]" )
+                logging.info( ">>> case b2a: calculate acc_time-reached_vel corresponds to pos_diff [ /````\\..../ ]" )
                 acc_time = calculate_const_acc_time(pos_diff, v, abs_max_vel, abs_max_acc, abs_max_jrk)
                 t_max_acc = acc_time
-            else:
-                rospy.logdebug( "\n >>> case b2b: calculate acc corresponds to pos_diff [ /\\/ ]")
+            else: # 由于距离的约束，不能达到am
+                logging.info( ">>> case b2b: calculate acc corresponds to pos_diff [ /\\/ ]")
                 acc = calculate_reached_acc_in_case_no_const_acc_phase(pos_diff, v, abs_max_vel, abs_max_acc, abs_max_jrk)
                 t_max_jrk = acc/abs_max_jrk
                 t_max_acc = 0.0
@@ -277,7 +277,7 @@ def traj_segment_planning(p_start, p_end, abs_v_start, abs_v_end, abs_max_vel, a
     #calculate min_pos required to reach vf from v0   
     abs_min_pos_to_vf, acc_to_vf, t_jrk_to_vf, t_acc_to_vf = calculate_min_pos_reached_acc_jrk_time_acc_time_to_reach_final_vel(abs_v_start, abs_v_end, abs_max_vel, abs_max_acc, abs_max_jrk)
     if abs_min_pos_to_vf > abs(p_end-p_start) and  abs_min_pos_to_vf - abs(p_end-p_start) > 1e-5: # if abs_min_pos_to_vf> abs(p_end-p_start), then these values are not feasible
-        print">>> min required position difference to reach v_end from v_start= {} > abs(p_end-p_start)={} ".format(abs_min_pos_to_vf, abs(p_end-p_start) )       
+        logging.error(f'>>> min required position difference to reach v_end from v_start= {abs_min_pos_to_vf} > abs(p_end-p_start)={abs(p_end-p_start)}')
         raise ValueError("non feasible case: violate min_pos_to_vf" )      
         return 0, 0, 0, 0, 0
     
@@ -295,7 +295,6 @@ def traj_segment_planning(p_start, p_end, abs_v_start, abs_v_end, abs_max_vel, a
             t_jrk=0.0
             t_acc=0.0
             t_vel=0.0
-    # return time for both: from v0_to_vf case and for equal_vel_case 
-    rospy.logdebug(">>> output of traj_segment_planning: t_jrk_to_vf, t_acc_to_vf, t_jrk, t_acc, t_vel: ")
-    rospy.logdebug("{},  {}, {},  {}, {}".format(t_jrk_to_vf, t_acc_to_vf, t_jrk, t_acc, t_vel) ) 
+    # return time for both: from v0_to_vf case and for equal_vel_case. t_acc=加速度恒定段，t_vel=速度恒定段
+    logging.info(f'>>> output of traj_segment_planning: t_jrk_to_vf, t_acc_to_vf, t_jrk, t_acc, t_vel: {t_jrk_to_vf},  {t_acc_to_vf}, {t_jrk},  {t_acc}, {t_vel}')
     return t_jrk_to_vf, t_acc_to_vf, t_jrk, t_acc, t_vel

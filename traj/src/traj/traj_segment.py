@@ -14,7 +14,7 @@ from sympy.core.numbers import Float
 from .piecewise_function import PiecewiseFunction
 import traj
 import math
-import rospy
+import logging
 
 # Function to assign jerk sign for each phase based on the motion (+ve/-ve): it is determined by start/end vel, and pos_diff 
 def assign_jerk_sign_According_to_motion_type(p_start, p_end, v_start, v_end, p_max, v_max, a_max, j_max):
@@ -29,7 +29,7 @@ def assign_jerk_sign_According_to_motion_type(p_start, p_end, v_start, v_end, p_
          
     else:# v_end != v_start:
         if v_start*v_end < 0: #won't be need it in complex motion case 
-            rospy.logdebug("this a complex motion, stop point will be calculated to join the +ve/-ve motion part " )          
+            logging.info("this a complex motion, stop point will be calculated to join the +ve/-ve motion part " )          
         elif abs_v_start < abs_v_end : #acc motion
             if(v_start >= 0 and v_end >= 0): # positive motion
                 j_max_to_vf = j_max #math.copysign(j_max, v_end)
@@ -60,25 +60,25 @@ def calculate_jerk_sign_and_duration(p_start, p_end, v_start, v_end, p_max, v_ma
     # for p_start: it depends on direction of v_start, as we can not put p_start as p_max if v_start is in +ve direction 
     if(abs(v_start) > v_max):       
         v_start = math.copysign(v_max, v_start)
-        rospy.logdebug("\nWarning: \n>>> these values are not feasible:  v_start should be within the limit v_max !")
-        rospy.logdebug(">>> v_start: {}, v_max: {}".format(v_start, v_max) )
+        logging.info("\nWarning: \n>>> these values are not feasible:  v_start should be within the limit v_max !")
+        logging.info(">>> v_start: {}, v_max: {}".format(v_start, v_max) )
         #if abs(v_start) - v_max >1e-15:
         raise ValueError("non feasible case: violate v_max, v_start: {}, v_max: {}".format(v_start, v_max) )
 
     if(abs(v_end) > v_max):
        v_end = math.copysign(v_max, v_end) 
-       rospy.logdebug("\nWarning: \n>>> these values are not feasible,   v_end should be within the limit v_max !")
-       rospy.logdebug(">>> v_end: {}, v_max: {}".format(v_end, v_max) )
+       logging.info("\nWarning: \n>>> these values are not feasible,   v_end should be within the limit v_max !")
+       logging.info(">>> v_end: {}, v_max: {}".format(v_end, v_max) )
        raise ValueError("non feasible case: violate v_max, v_end: {}, v_max: {}".format(v_end, v_max) )
  
     if(abs(p_end) > p_max):
-        rospy.logdebug("\nWarning: \n>>> these values are not feasible,   p_end should be within the limit p_max !")
+        logging.info("\nWarning: \n>>> these values are not feasible,   p_end should be within the limit p_max !")
         p_end = math.copysign(p_max, p_end)
         
     if(abs(p_start) > p_max):
         p_start = math.copysign(p_max, p_start)
         if (p_start*v_start>0.0) or (v_start==0 and p_start*v_end>0.0): #direction of motion 
-            print"\nWarning: \n>>> these values are not feasible,  p_start = p_max, and motion in the direction of v_start will violate p_max!"
+            print("\nWarning: \n>>> these values are not feasible,  p_start = p_max, and motion in the direction of v_start will violate p_max!")
             raise ValueError("non feasible case: violate p_max" ) 
             
     # reject unfeasible/iillogical cases 
@@ -104,7 +104,7 @@ def calculate_jerk_sign_and_duration(p_start, p_end, v_start, v_end, p_max, v_ma
             if v_start < 0.0 and v_end > 0.0: # from negative to positive 
                 if abs(p_start+minPos_to_zero) > p_max or abs(p_start+minPos_to_zero+minPos_to_vf) > p_max or  abs(p_start+minPos_to_zero+minPos_to_vf+pos_dominant) > p_max:
                     raise ValueError("non feasible case: violate p_max") 
-                rospy.logdebug("\n\n>>>positive dominant case: negative to positive: {}, {}, {}, {}".format(p_start, p_end, v_start, v_end) )
+                logging.info("\n\n>>>positive dominant case: negative to positive: {}, {}, {}, {}".format(p_start, p_end, v_start, v_end) )
                 t_jrk_not_used, t_acc_not_used, t_jrk_dominant, t_acc_dominant, t_vel_dominant = traj.traj_segment_planning(p_start, p_end - minPos_to_zero - minPos_to_vf,       abs_v_end,      abs_v_end,      v_max, a_max, j_max) 
                 segment_jerks_and_durations = [( j_max, t_jrk_to_zero),  (0.0, t_acc_to_zero),  (-j_max, t_jrk_to_zero ),
                                                ( j_max, t_jrk_to_vf),    (0.0, t_acc_to_vf),    (-j_max, t_jrk_to_vf ),
@@ -112,7 +112,7 @@ def calculate_jerk_sign_and_duration(p_start, p_end, v_start, v_end, p_max, v_ma
             elif v_start > 0.0 and v_end < 0.0: #from positive to negative
                 if abs(p_start+pos_dominant) > p_max or abs(p_start+pos_dominant+minPos_to_zero) > p_max or  abs(p_start+pos_dominant+minPos_to_zero+minPos_to_vf) > p_max:
                     raise ValueError("non feasible case: violate p_max")                 
-                rospy.logdebug("\n\n>>>positive dominant case: positive to negative: {}, {}, {}, {}".format(p_start, p_end, v_start, v_end))
+                logging.info("\n\n>>>positive dominant case: positive to negative: {}, {}, {}, {}".format(p_start, p_end, v_start, v_end))
                 t_jrk_not_used, t_acc_not_used, t_jrk_dominant, t_acc_dominant, t_vel_dominant = traj.traj_segment_planning(p_start, p_end-minPos_to_zero-minPos_to_vf, abs_v_start, abs_v_start, v_max, a_max, j_max) 
                 segment_jerks_and_durations = [( j_max, t_jrk_dominant), (0.0, t_acc_dominant), (-j_max, t_jrk_dominant),  (0, t_vel_dominant), (-j_max, t_jrk_dominant), (0.0, t_acc_dominant), (j_max, t_jrk_dominant),
                                                (-j_max, t_jrk_to_zero),  (0.0, t_acc_to_zero),  ( j_max, t_jrk_to_zero ),
@@ -125,7 +125,7 @@ def calculate_jerk_sign_and_duration(p_start, p_end, v_start, v_end, p_max, v_ma
             if v_start < 0.0 and v_end > 0.0: # from negative to positive
                 if abs(p_start+pos_dominant) > p_max or abs(p_start+pos_dominant+minPos_to_zero) > p_max or  abs(p_start+pos_dominant+minPos_to_zero+minPos_to_vf) > p_max:
                     raise ValueError("non feasible case: violate p_max")                 
-                rospy.logdebug("\n\n>>>negative dominant case: negative to positive: {}, {}, {}, {}".format(p_start, p_end, v_start, v_end))
+                logging.info("\n\n>>>negative dominant case: negative to positive: {}, {}, {}, {}".format(p_start, p_end, v_start, v_end))
                 t_jrk_not_used, t_acc_not_used, t_jrk_dominant, t_acc_dominant, t_vel_dominant = traj.traj_segment_planning(p_start, p_end-minPos_to_zero-minPos_to_vf, abs_v_start, abs_v_start, v_max, a_max, j_max)                                          
                 segment_jerks_and_durations = [(-j_max, t_jrk_dominant), (0.0, t_acc_dominant), ( j_max, t_jrk_dominant),  (0, t_vel_dominant),(j_max, t_jrk_dominant), (0.0, t_acc_dominant), (-j_max, t_jrk_dominant),
                                                ( j_max, t_jrk_to_zero),  (0.0, t_acc_to_zero),  (-j_max, t_jrk_to_zero ),
@@ -133,7 +133,7 @@ def calculate_jerk_sign_and_duration(p_start, p_end, v_start, v_end, p_max, v_ma
             elif v_start > 0.0 and v_end < 0.0: #from positive to negative
                 if abs(p_start+minPos_to_zero) > p_max or abs(p_start+minPos_to_zero+minPos_to_vf) > p_max or  abs(p_start+minPos_to_zero+minPos_to_vf+pos_dominant) > p_max:
                     raise ValueError("non feasible case: violate p_max")       
-                rospy.logdebug("\n\n>>>negative dominant case: positive to negative: {}, {}, {}, {}".format(p_start, p_end, v_start, v_end)  )         
+                logging.info("\n\n>>>negative dominant case: positive to negative: {}, {}, {}, {}".format(p_start, p_end, v_start, v_end)  )         
                 t_jrk_not_used, t_acc_not_used, t_jrk_dominant, t_acc_dominant, t_vel_dominant = traj.traj_segment_planning(p_start+ minPos_to_zero + minPos_to_vf, p_end , abs_v_end, abs_v_end,  v_max, a_max, j_max)
                 segment_jerks_and_durations = [(-j_max, t_jrk_to_zero),  (0.0, t_acc_to_zero),  ( j_max, t_jrk_to_zero ),
                                                (-j_max, t_jrk_to_vf),    (0.0, t_acc_to_vf),    ( j_max, t_jrk_to_vf ),
@@ -146,21 +146,20 @@ def calculate_jerk_sign_and_duration(p_start, p_end, v_start, v_end, p_max, v_ma
         minPos_v02vf = minPos_to_zero + minPos_to_vf
         if v_start < 0 and v_end > 0: #from -ve to +ve
             if pos_diff < minPos_v02vf:
-                rospy.logdebug(">>>>>> non optimal case <<<<<<< ")
+                logging.info(">>>>>> non optimal case <<<<<<< ")
         else:
             if pos_diff > minPos_v02vf:
-                rospy.logdebug(">>>>>> non optimal case <<<<<<< ")
+                logging.info(">>>>>> non optimal case <<<<<<< ")
                    
     # 2)simple motion:  positive or negative velocity, v0 and vf have same sign 
     else:
         # same action will be performed in both simple +ve or simple -ve motion, this part can be used later 
         # A) simple positive motion
         if(v_start >= 0 and v_end >= 0): # case one: both are positive
-            rospy.logdebug("\n\n>>>simple postive motion: {}, {}, {}, {} ".format(p_start, p_end, v_start, v_end))
-
+            logging.info(">>>simple postive motion: {}, {}, {}, {} ".format(p_start, p_end, v_start, v_end))
         # B) simple negative motion                        
         elif (v_start <= 0 and v_end <= 0): # case two: both are negative
-            rospy.logdebug("\n\n>>>simple negative motion: {}, {}, {}, {} ".format(p_start, p_end, v_start, v_end))
+            logging.info(">>>simple negative motion: {}, {}, {}, {} ".format(p_start, p_end, v_start, v_end))
         t_jrk_to_vf, t_acc_to_vf, t_jrk, t_acc, t_vel = traj.traj_segment_planning(p_start, p_end, abs_v_start, abs_v_end, v_max, a_max, j_max)
         j_max_to_vf, j_max = assign_jerk_sign_According_to_motion_type(p_start, p_end, v_start, v_end, p_max, v_max, a_max, j_max)
         if abs_v_end > abs_v_start:

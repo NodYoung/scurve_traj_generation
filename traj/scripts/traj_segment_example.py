@@ -3,6 +3,8 @@
 Simple example that fits general trajectory segment, given the start and
 end positions/velocities. Start and end acceleration/jerk are assumed to be zero.
 """
+import os, sys
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), '../src'))
 from matplotlib import pyplot as plt
 import traj
 
@@ -14,7 +16,7 @@ j_max=10.0
 
 ############### CASE A: v_start = v_end = 0    [normal case, start and end velocities are zeros]
 #case A1:  no limit is reached     
-traj.traj_plot.fit_and_plot_segment(0.0, 1.0,      0.0, 0.0,     p_max, v_max, a_max, j_max)      
+traj.traj_plot.fit_and_plot_segment(0.0, 1.0,      0.0, 0.0,     p_max, v_max, a_max, j_max)
     
 #case A2:  acc_limit is reached     
 traj.traj_plot.fit_and_plot_segment(0.0, 3.0,      0.0, 0.0,     p_max, v_max, a_max, j_max)      
@@ -141,3 +143,4 @@ traj.traj_plot.fit_and_plot_segment(0.0, 5.0,      -1.5, +1.0,     p_max, v_max,
 traj.traj_plot.fit_and_plot_segment(0.0, -8.0,      1.5, -1.0,     p_max, v_max, a_max, j_max)   
 ### starting from -ve to +ve
 traj.traj_plot.fit_and_plot_segment(0.0, -5.0,      -1.5, +1.0,     p_max, v_max, a_max, j_max)   
+  
