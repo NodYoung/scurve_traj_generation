@@ -48,7 +48,7 @@ def calculate_min_pos_reached_acc_to_reach_max_vel(v, vm, am, jm):
     
 
 def calculate_reached_acc_in_case_no_const_acc_phase(Dp, v, vm, am ,jm):
-    '''
+    ''' 考虑加速度曲线是[/\\/], 则2*ar^3+4*v0*jm*ar-jm^2*dp=0
     This function calculates the acceleration that has been reached to move the joint a position equals to "DP" starting with velocity "v"
     this considers the case where there is no a constant acceleration phase.
     '''
@@ -221,6 +221,7 @@ def equal_vel_case_planning (pos_diff, v, abs_max_vel, abs_max_acc, abs_max_jrk)
     '''
     # check if a const_acc phase is required or not by calcuating the reached_acc_to_max_vel to reach vf
     min_pos_to_max_vel, reached_acc_to_max_vel = calculate_min_pos_reached_acc_to_reach_max_vel(v, abs_max_vel, abs_max_acc, abs_max_jrk)
+    logging.info(f'min_pos_to_max_vel={min_pos_to_max_vel}, reached_acc_to_max_vel={reached_acc_to_max_vel}')
     # check if reached_acc_to_max_vel < abs_max_acc: 
     #if yes: then no const_acc phase, check if a const_vel phase is required or not (to satisfy pos_diff) 
     if(reached_acc_to_max_vel<= abs_max_acc): # 由于速度的约束，不能达到最大加速度(也不可能有匀加速段)

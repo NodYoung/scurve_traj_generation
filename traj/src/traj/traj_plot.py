@@ -1,5 +1,6 @@
 from matplotlib import pyplot as plt
 import numpy as np
+import logging
 import traj
 
 joint_colors = ['r', 'b', 'g', 'c', 'm', 'y', 'k', 'w']
@@ -12,6 +13,7 @@ Uses the entire provided figure, adding subplots as needed.
 def plot_segment(figure, position, velocity, acceleration, jerk, n_points=500, j_max=None,
         a_max=None, v_max=None, p_max=None):
     boundaries = jerk.boundaries
+    logging.info(f'duration={boundaries[-1]}')
     plot_times = np.linspace(position.boundaries[0], position.boundaries[-1], n_points)
     positions = np.array([position(t) for t in plot_times])
     velocities = np.array([velocity(t) for t in plot_times])
