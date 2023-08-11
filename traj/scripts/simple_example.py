@@ -40,12 +40,24 @@ def test_casea_duration():
   logging.info(f'time={duration(0.3)}')
   traj.traj_plot.fit_and_plot_segment(0.0, 0.3,      0.0, 0.0,     pmax, vmax, amax, jmax)
   
-  
-
+def test_ramp_time():
+  '''用acc_ramp_time来限制得到的jmax。这样保证加速时间一定不小于ramp_time, 从而避免抖动问题
+  '''
+  ramp_time=0.1
+  pd=1.0
+  vmax = 3.0  # 5.0
+  amax = 50.0
+  jmax_pos = pd/(2*ramp_time*ramp_time*ramp_time)
+  jmax_vel = vmax/(ramp_time*ramp_time)
+  jmax_acc = amax/ramp_time
+  jmax = min(jmax_pos, min(jmax_vel, jmax_acc))
+  # jmax = min(jmax_pos, jmax_acc)
+  traj.traj_plot.fit_and_plot_segment(0.0, pd,      0.0, 0.0,     30, vmax, amax, jmax)
 
 if __name__ == '__main__':
   logging.basicConfig(level=logging.INFO, format="%(filename)s[line:%(lineno)d] - %(levelname)s: %(message)s")
   # test_zero_vel()
-  test_casea_duration()
+  # test_casea_duration()
+  test_ramp_time()
   
   
